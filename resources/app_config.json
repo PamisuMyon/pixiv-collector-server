@@ -1,0 +1,6 @@
+{
+    "mongoUri": "mongodb://127.0.0.1:27017/pixiv-collector",
+    "enableIllustManage": true,
+    "defaultImageProxy": "i.pixiv.cat",
+    "collectSinglePage": true
+}

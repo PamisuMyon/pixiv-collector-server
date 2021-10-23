@@ -1,0 +1,28 @@
+{
+  "name": "pixiv-collector-server",
+  "version": "0.1.0",
+  "description": "pixiv kore",
+  "main": "app.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/app.js",
+    "misc": "node dist/misc.js"
+  },
+  "author": "Pamisu",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/express": "^4.17.13",
+    "@types/json2csv": "^5.0.3",
+    "@types/tunnel": "0.0.3",
+    "got": "^11.8.2",
+    "hpagent": "^0.1.2",
+    "json2csv": "^5.0.6",
+    "tunnel": "0.0.6",
+    "typescript": "^4.4.3"
+  },
+  "dependencies": {
+    "express": "^4.17.1",
+    "log4js": "^6.3.0",
+    "mongodb": "^4.1.2"
+  }
+}
