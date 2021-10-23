@@ -2,9 +2,9 @@
 
 包含随机图片检索API、Pixiv画作收集管理API，可作为随机图片服务单独使用。
 
-[illust数据]()
+[illust数据](https://github.com/pmisu/Pixiv-Collector-Server/releases)
 
-[Pixiv画作收集客户端]()
+[Pixiv画作收集客户端](https://github.com/pmisu/Pixiv-Collector)
 
 # 使用
 数据库：mongodb创建名为`pixiv-collector`的database，创建名为`illust`的collection并导入数据（非必须）。
