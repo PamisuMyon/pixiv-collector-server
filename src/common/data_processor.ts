@@ -10,6 +10,7 @@ export function illustsToDb(illusts: any[]): any[] {
                 title: illust.title,
                 author_id: illust.user.id,
                 author_name: illust.user.name,
+                author_account: illust.user.account,
                 create_date: illust.create_date,
                 sanity_level: illust.sanity_level,
                 width: illust.width,

@@ -33,24 +33,94 @@ function getFindFilter(options: FindOptions, accurate = false): any {
     }
 }
 
+function getIdsFilter(tags: string[]) {
+    let ids = [];
+    for (const tag of tags) {
+        let num = parseInt(tag);
+        if (!isNaN(num)) {
+            ids.push(num);
+        }
+    }
+    if (ids.length > 0) {
+        return { id: { $in: ids } };
+    }
+}
+
+function getTagsFilter(tags: string[], accurate = false) {
+    if (accurate) {
+        return [{ tags: { $all: tags } }];
+    } else {
+        let and = [];
+        for (const tag of tags) {
+            and.push({ tags: { $regex: tag } })
+        }
+        return and;
+    }
+}
+
+function getAuthorOrTitleFilter(tags: string[], accurate = false) {
+    if (accurate) {
+        return { 
+            $or: [ 
+                { author_name: { $in: tags } },
+                { title: { $in: tags } }
+            ]
+        };
+    } else {
+        let or = [];
+        for (const tag of tags) {
+            or.push({ author_name: { $regex: tag } })
+            or.push({ title: { $regex: tag } })
+        }
+        return { $or: or };
+    }
+}
+
 export async function random(options: FindOptions): Promise<any[]> {
     let col = db.collection('illust');
+
     let pipeline = [];
-    let filter = getFindFilter(options, true);
-    if (filter) {
-        pipeline.push({ $match: filter });
+    let baseAnd = [];
+    if (options.r18 == 0 || options.r18 == 1) {
+        baseAnd.push({ r18: options.r18 });
+    }
+    if (options.maxSanityLevel > 1) {
+        baseAnd.push({ sanity_level: { $lte: options.maxSanityLevel } });
+    }
+    pipeline.push({ $match: { } });
+    if (baseAnd.length > 0) {
+        pipeline[0].$match = { $and: baseAnd };
     }
     pipeline.push({ $sample: { size: options.num } });
     pipeline.push({ $project: { _id: 0 } });
-    let cursor = col.aggregate(pipeline);
-    if (!await cursor.hasNext() && pipeline[0].$match) {
-        filter = getFindFilter(options, false);
-        if (filter) {
-            pipeline[0].$match = filter;
-            cursor = col.aggregate(pipeline);
+
+    let hasTags = options.tags && options.tags.length > 0;
+    if (hasTags) {
+        // find by this sequence:
+        // id > accurate tags > accurate author or title > fuzzy tags > fuzzy author or title
+        let filters = [
+            getTagsFilter(options.tags, true),
+            [getAuthorOrTitleFilter(options.tags, true)],
+            getTagsFilter(options.tags, false),
+            [getAuthorOrTitleFilter(options.tags, false)],
+        ];
+        let idsFilter = getIdsFilter(options.tags);
+        if (idsFilter) {
+            filters.splice(0, 0, [idsFilter]);
         }
+        for (const filter of filters) {
+            filter.push(...baseAnd);
+            pipeline[0].$match = { $and: filter };
+            console.dir(pipeline[0].$match);
+            let cursor = col.aggregate(pipeline);
+            if (await cursor.hasNext()) {
+                return await cursor.toArray();
+            }
+        }
+    } else {
+        let cursor = col.aggregate(pipeline);
+        return await cursor.toArray();
     }
-    return await cursor.toArray();
 }
 
 export async function find(options: FindOptions) {
