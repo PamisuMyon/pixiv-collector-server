@@ -52,6 +52,7 @@ async function findRandom(p: any) {
         r18: (p.r18 != 1 && p.r18 != 2) ? 0 : p.r18,
         tags: p.tags || [],
         maxSanityLevel: p.maxSanityLevel || 0,
+        matchMode: p.matchMode || illustDao.MatchMode.ACCURACY
     };
 
     if (!Array.isArray(option.tags)) {

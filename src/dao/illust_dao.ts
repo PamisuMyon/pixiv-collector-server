@@ -1,11 +1,16 @@
 import { ObjectId } from 'bson';
 import { db } from './db';
 
+export enum MatchMode {
+    ACCURACY = 'accuracy',  // accuracy first
+    TAGS = 'tags',    // tags first
+}
+
 export interface FindOptions {
     num: number;
     r18?: number;
     tags?: string[];
-    matchMode?: string;
+    matchMode?: MatchMode;
     maxSanityLevel?: number;
     offsetOid?: string;
     sort?: string;
@@ -96,18 +101,29 @@ export async function random(options: FindOptions): Promise<any[]> {
 
     let hasTags = options.tags && options.tags.length > 0;
     if (hasTags) {
-        // find by this sequence:
-        // id > accurate tags > accurate author or title > fuzzy tags > fuzzy author or title
-        let filters = [
-            getTagsFilter(options.tags, true),
-            [getAuthorOrTitleFilter(options.tags, true)],
-            getTagsFilter(options.tags, false),
-            [getAuthorOrTitleFilter(options.tags, false)],
-        ];
+        let filters: any[][];
+        if (options.matchMode == MatchMode.TAGS) {
+            // id > accurate tags > fuzzy tags > accurate author or title > fuzzy author or title
+            filters = [
+                getTagsFilter(options.tags, true),
+                getTagsFilter(options.tags, false),
+                [getAuthorOrTitleFilter(options.tags, true)],
+                [getAuthorOrTitleFilter(options.tags, false)],
+            ];
+        } else {
+            // id > accurate tags > accurate author or title > fuzzy tags > fuzzy author or title
+            filters = [
+                getTagsFilter(options.tags, true),
+                [getAuthorOrTitleFilter(options.tags, true)],
+                getTagsFilter(options.tags, false),
+                [getAuthorOrTitleFilter(options.tags, false)],
+            ];
+        }
         let idsFilter = getIdsFilter(options.tags);
         if (idsFilter) {
             filters.splice(0, 0, [idsFilter]);
         }
+        
         for (const filter of filters) {
             filter.push(...baseAnd);
             pipeline[0].$match = { $and: filter };
