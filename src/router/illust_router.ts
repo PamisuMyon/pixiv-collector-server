@@ -62,7 +62,13 @@ async function findRandom(p: any) {
     let r = await illustDao.random(option);
     let fallback = false;
     if ((!r || r.length == 0) && p.fallback) {
-        r = await illustDao.random({ num: option.num, r18: 0})
+        if (p.fallbackTags 
+            && Array.isArray(p.fallbackTags)
+            && p.fallbackTags.length != 0) {
+            r = await illustDao.random({ num: option.num, r18: 0, tags: p.fallbackTags});
+        }
+        else
+            r = await illustDao.random({ num: option.num, r18: 0});
         fallback = true;
     }
     let proxy = p.proxy || getAppConfig().defaultImageProxy;
