@@ -51,8 +51,10 @@ Pixiv Collector Server listening on port 7007.
 | r18            | number   | 0           | `0`非r18 `1`r18 `2`我全都要             |
 | num            | number   | 1           | 期望返回画作数量，最大值30       |
 | tags           | string[] |             | 标签列表，标签之间为与关系      |
+| excludedTags   | string[] |             | 要排除的标签列表            |
 | maxSanityLevel | number   | 0           | 画作的最高色色等级，`0`为不作限制          |
 | fallback       | boolean  | false       | `true`没有匹配结果时，不返回空列表而是返回随机结果 |
+| fallbackTags   | string[] |             | `fallback`为`true`且没有匹配结果时，按此标签列表检索 |
 | proxy          | string   | i.pixiv.cat | 图片代理，用于替换图片url中的i.pximg.net |
 
 POST请求时参数为json格式。tags的检索为先精确匹配，若无结果再模糊匹配。

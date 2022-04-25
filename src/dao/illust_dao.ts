@@ -10,6 +10,7 @@ export interface FindOptions {
     num: number;
     r18?: number;
     tags?: string[];
+    excludedTags?: string[];
     matchMode?: MatchMode;
     maxSanityLevel?: number;
     offsetOid?: string;
@@ -26,9 +27,12 @@ function getFindFilter(options: FindOptions, accurate = false): any {
             and.push({ tags: { $all: options.tags } });
         } else {
             for (const tag of options.tags) {
-                and.push({ tags: { $regex: tag } })
+                and.push({ tags: { $regex: tag, $options:'i' } })
             }
         }
+    }
+    if (options.excludedTags && options.excludedTags.length > 0) {
+        and.push({ tags: { $nin: options.excludedTags }});
     }
     if (options.maxSanityLevel > 1) {
         and.push({ sanity_level: { $lte: options.maxSanityLevel } });
@@ -57,7 +61,7 @@ function getTagsFilter(tags: string[], accurate = false) {
     } else {
         let and = [];
         for (const tag of tags) {
-            and.push({ tags: { $regex: tag } })
+            and.push({ tags: { $regex: tag, $options:'i' } })
         }
         return and;
     }
@@ -74,8 +78,8 @@ function getAuthorOrTitleFilter(tags: string[], accurate = false) {
     } else {
         let or = [];
         for (const tag of tags) {
-            or.push({ author_name: { $regex: tag } })
-            or.push({ title: { $regex: tag } })
+            or.push({ author_name: { $regex: tag, $options:'i' } })
+            or.push({ title: { $regex: tag, $options:'i' } })
         }
         return { $or: or };
     }
@@ -91,6 +95,9 @@ export async function random(options: FindOptions): Promise<any[]> {
     }
     if (options.maxSanityLevel > 1) {
         baseAnd.push({ sanity_level: { $lte: options.maxSanityLevel } });
+    }
+    if (options.excludedTags && options.excludedTags.length > 0) {
+        baseAnd.push({ tags: { $nin: options.excludedTags }});
     }
     pipeline.push({ $match: { } });
     if (baseAnd.length > 0) {
@@ -127,7 +134,7 @@ export async function random(options: FindOptions): Promise<any[]> {
         for (const filter of filters) {
             filter.push(...baseAnd);
             pipeline[0].$match = { $and: filter };
-            console.dir(pipeline[0].$match);
+            // console.dir(pipeline[0].$match);
             let cursor = col.aggregate(pipeline);
             if (await cursor.hasNext()) {
                 return await cursor.toArray();

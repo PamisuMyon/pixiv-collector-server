@@ -51,6 +51,7 @@ async function findRandom(p: any) {
         num: p.num || 1,
         r18: (p.r18 != 1 && p.r18 != 2) ? 0 : p.r18,
         tags: p.tags || [],
+        excludedTags: p.excludedTags || [],
         maxSanityLevel: p.maxSanityLevel || 0,
         matchMode: p.matchMode || illustDao.MatchMode.ACCURACY
     };
@@ -65,10 +66,10 @@ async function findRandom(p: any) {
         if (p.fallbackTags 
             && Array.isArray(p.fallbackTags)
             && p.fallbackTags.length != 0) {
-            r = await illustDao.random({ num: option.num, r18: 0, tags: p.fallbackTags});
+            r = await illustDao.random({ num: option.num, r18: 0, tags: p.fallbackTags, excludedTags: option.excludedTags});
         }
         else
-            r = await illustDao.random({ num: option.num, r18: 0});
+            r = await illustDao.random({ num: option.num, r18: 0, excludedTags: option.excludedTags});
         fallback = true;
     }
     let proxy = p.proxy || getAppConfig().defaultImageProxy;
@@ -239,6 +240,7 @@ if (getAppConfig().enableIllustManage) {
             num: p.num || 30,
             r18: (p.r18 != 1 && p.r18 != 2) ? 0 : p.r18,
             tags: p.tags || [],
+            excludedTags: p.excludedTags || [],
             maxSanityLevel: p.maxSanityLevel || 0,
             offsetOid: p.offsetOid,
             sort: p.sort || 'desc',
