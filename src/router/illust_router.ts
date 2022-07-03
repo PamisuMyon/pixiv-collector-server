@@ -35,6 +35,7 @@ router.post('/', function(req, res, next) {
             code: 0,
             msg: null,
             count: r.illusts? r.illusts.length : 0,
+            totalSample: r.totalSample,
             fallback: r.fallback,
             data: r.illusts
         }
@@ -53,7 +54,8 @@ async function findRandom(p: any) {
         tags: p.tags || [],
         excludedTags: p.excludedTags || [],
         maxSanityLevel: p.maxSanityLevel || 0,
-        matchMode: p.matchMode || illustDao.MatchMode.ACCURACY
+        matchMode: p.matchMode || illustDao.MatchMode.ACCURACY,
+        returnTotalSample: p.returnTotalSample || false,
     };
 
     if (!Array.isArray(option.tags)) {
@@ -62,19 +64,19 @@ async function findRandom(p: any) {
     option.num = Math.min(30, Math.max(0, option.num));
     let r = await illustDao.random(option);
     let fallback = false;
-    if ((!r || r.length == 0) && p.fallback) {
+    if ((!r || !r.data || r.data.length == 0) && p.fallback) {
         if (p.fallbackTags 
             && Array.isArray(p.fallbackTags)
             && p.fallbackTags.length != 0) {
-            r = await illustDao.random({ num: option.num, r18: 0, tags: p.fallbackTags, excludedTags: option.excludedTags});
+            r = await illustDao.random({ num: option.num, r18: 0, tags: p.fallbackTags, excludedTags: option.excludedTags, returnTotalSample: option.returnTotalSample });
         }
         else
             r = await illustDao.random({ num: option.num, r18: 0, excludedTags: option.excludedTags});
         fallback = true;
     }
     let proxy = p.proxy || getAppConfig().defaultImageProxy;
-    processUrl(r, proxy);
-    return { illusts: r, fallback };
+    processUrl(r.data, proxy);
+    return { illusts: r.data, fallback, totalSample: r.totalSample };
 }
 
 /**

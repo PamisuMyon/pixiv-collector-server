@@ -15,6 +15,7 @@ export interface FindOptions {
     maxSanityLevel?: number;
     offsetOid?: string;
     sort?: string;
+    returnTotalSample?: boolean;
 }
 
 function getFindFilter(options: FindOptions, accurate = false): any {
@@ -85,9 +86,23 @@ function getAuthorOrTitleFilter(tags: string[], accurate = false) {
     }
 }
 
-export async function random(options: FindOptions): Promise<any[]> {
+export async function random(options: FindOptions): Promise<{totalSample: number, data: any[]}> {
     let col = db.collection('illust');
 
+    /* 
+    Pipeline stages
+    When options.returnTotalSample is true:
+    Pipeline 1
+        $match
+        $count
+    Pipeline 2
+        $match
+        $sample
+    When options.returnTotalSample is false:
+    Pipeline 1
+        $match
+        $sample
+    */
     let pipeline = [];
     let baseAnd = [];
     if (options.r18 == 0 || options.r18 == 1) {
@@ -103,10 +118,15 @@ export async function random(options: FindOptions): Promise<any[]> {
     if (baseAnd.length > 0) {
         pipeline[0].$match = { $and: baseAnd };
     }
-    pipeline.push({ $sample: { size: options.num } });
-    pipeline.push({ $project: { _id: 0 } });
 
     let hasTags = options.tags && options.tags.length > 0;
+    if (options.returnTotalSample && hasTags) {
+        pipeline.push({ $count: 'totalSample'});
+    } else {
+        pipeline.push({ $sample: { size: options.num } });
+        pipeline.push({ $project: { _id: 0 } });
+    }
+
     if (hasTags) {
         let filters: any[][];
         if (options.matchMode == MatchMode.TAGS) {
@@ -136,13 +156,26 @@ export async function random(options: FindOptions): Promise<any[]> {
             pipeline[0].$match = { $and: filter };
             // console.dir(pipeline[0].$match);
             let cursor = col.aggregate(pipeline);
-            if (await cursor.hasNext()) {
-                return await cursor.toArray();
+            if (options.returnTotalSample) {
+                if (await cursor.hasNext()) {
+                    const result = await cursor.next();
+                    if (result.totalSample > 0) {
+                        pipeline.pop();
+                        pipeline.push({ $sample: { size: options.num } });
+                        pipeline.push({ $project: { _id: 0 } });
+                        cursor = col.aggregate(pipeline);
+                        return { totalSample: result.totalSample, data: await cursor.toArray() }
+                    }
+                }
+            } else {
+                if (await cursor.hasNext()) {
+                    return {totalSample: -1, data: await cursor.toArray()};
+                }
             }
         }
     } else {
         let cursor = col.aggregate(pipeline);
-        return await cursor.toArray();
+        return {totalSample: -1, data: await cursor.toArray()};
     }
 }
 
