@@ -18,8 +18,9 @@ router.get('/', function(req, res, next) {
             code: 0,
             msg: null,
             count: r.illusts? r.illusts.length : 0,
+            totalSample: r.totalSample,
             fallback: r.fallback,
-            data: r
+            data: r.illusts
         }
         res.send(JSON.stringify(result));
     });
@@ -56,6 +57,7 @@ async function findRandom(p: any) {
         maxSanityLevel: p.maxSanityLevel || 0,
         matchMode: p.matchMode || illustDao.MatchMode.ACCURACY,
         returnTotalSample: p.returnTotalSample || false,
+        clientId: p.clientId,
     };
 
     if (!Array.isArray(option.tags)) {
@@ -74,8 +76,15 @@ async function findRandom(p: any) {
             r = await illustDao.random({ num: option.num, r18: 0, excludedTags: option.excludedTags});
         fallback = true;
     }
+
     let proxy = p.proxy || getAppConfig().defaultImageProxy;
     processUrl(r.data, proxy);
+
+    if (p.clientId && p.shouldRecord && p.shouldRecord !== 'false') {
+        const recordResult = await illustDao.record(p.clientId, r.data);
+        console.log(`Record result: modified: ${recordResult.modifiedCount}  upsert: ${recordResult.upsertedCount}`);
+    }
+
     return { illusts: r.data, fallback, totalSample: r.totalSample };
 }
 

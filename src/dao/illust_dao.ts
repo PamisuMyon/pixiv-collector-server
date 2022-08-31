@@ -16,6 +16,7 @@ export interface FindOptions {
     offsetOid?: string;
     sort?: string;
     returnTotalSample?: boolean;
+    clientId?: string;
 }
 
 function getFindFilter(options: FindOptions, accurate = false): any {
@@ -86,6 +87,51 @@ function getAuthorOrTitleFilter(tags: string[], accurate = false) {
     }
 }
 
+function getRecordsLookupStages(clientId: string, num: number) {
+    return [
+        {
+            $lookup: {
+                from: 'records',
+                localField: 'id',
+                foreignField: 'id',
+                as: 'records'
+            }
+        },
+        {
+            $unwind: {
+                path: '$records',
+                preserveNullAndEmptyArrays: true
+            }
+        },
+        {
+            $match: {
+                $or: [
+                  { 'records': null },
+                  { 'records.clientId': clientId }
+                ]
+            }
+        },
+        {
+            $addFields: {
+                lastRequestTime: '$records.lastRequestTime'
+            }
+        },
+        {
+            $addFields: {
+                lastRequestTime: { $ifNull: [ '$lastRequestTime', new Date('1970-01-01T00:00:00.000+00:00') ] } 
+            }
+        },
+        {
+            $sort: {
+                'lastRequestTime': 1
+            }
+        },
+        {
+            $limit: num
+        }
+    ];
+}
+
 export async function random(options: FindOptions): Promise<{totalSample: number, data: any[]}> {
     let col = db.collection('illust');
 
@@ -98,6 +144,17 @@ export async function random(options: FindOptions): Promise<{totalSample: number
     Pipeline 2
         $match
         $sample
+
+    When options.returnTotalSample && options.clientId are true:
+    Pipeline 1
+        $match
+        $count
+    Pipeline 2
+        $match
+        $lookup records
+        $sort by lastRequestTime -1
+        $sample
+
     When options.returnTotalSample is false:
     Pipeline 1
         $match
@@ -160,11 +217,23 @@ export async function random(options: FindOptions): Promise<{totalSample: number
                 if (await cursor.hasNext()) {
                     const result = await cursor.next();
                     if (result.totalSample > 0) {
+
+                        console.dir(options.tags);
+                        console.log(`Profile: illustDao.random ${options.clientId} : ${result.totalSample}`)
+                        console.time('illustDao.random');
+
                         pipeline.pop();
-                        pipeline.push({ $sample: { size: options.num } });
-                        pipeline.push({ $project: { _id: 0 } });
+                        if (options.clientId && result.totalSample < 15000) { // hard-code 
+                            pipeline.push(...getRecordsLookupStages(options.clientId, options.num));
+                        } else {
+                            pipeline.push({ $sample: { size: options.num } });
+                            pipeline.push({ $project: { _id: 0 } });
+                        }
                         cursor = col.aggregate(pipeline);
-                        return { totalSample: result.totalSample, data: await cursor.toArray() }
+                        const results = await cursor.toArray();
+
+                        console.timeEnd('illustDao.random');
+                        return { totalSample: result.totalSample, data: results };
                     }
                 }
             } else {
@@ -176,6 +245,25 @@ export async function random(options: FindOptions): Promise<{totalSample: number
     } else {
         let cursor = col.aggregate(pipeline);
         return {totalSample: -1, data: await cursor.toArray()};
+    }
+}
+
+export async function record(clientId: string, illusts: any[]) {
+    if (!illusts || illusts.length == 0) return;
+    const col = db.collection('records');
+    const oprations = [];
+    for (const illust of illusts) {
+        oprations.push({
+            updateOne: {
+                filter: { id: illust.id, page: illust.page, clientId },
+                update: { $set: { lastRequestTime: new Date() } },
+                upsert: true
+            }
+        });
+    }
+    const result = await col.bulkWrite(oprations);
+    if (result && result.result && result.ok == 1) {
+        return { upsertedCount: result.upsertedCount, modifiedCount: result.modifiedCount };
     }
 }
 
