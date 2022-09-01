@@ -90,9 +90,20 @@ function getAuthorOrTitleFilter(tags: string[], accurate = false) {
 function getRecordsLookupStages(clientId: string, num: number) {
     return [
         {
+            $addFields: {
+                lookupId: {
+                    $concat: [
+                        { $toString: '$id' }, '/',
+                        { $toString: '$page' }, '/',
+                        clientId
+                    ]
+                }
+            }
+        },
+        {
             $lookup: {
                 from: 'records',
-                localField: 'id',
+                localField: 'lookupId',
                 foreignField: 'id',
                 as: 'records'
             }
@@ -104,30 +115,29 @@ function getRecordsLookupStages(clientId: string, num: number) {
             }
         },
         {
-            $match: {
-                $or: [
-                  { 'records': null },
-                  { 'records.clientId': clientId }
-                ]
-            }
-        },
-        {
             $addFields: {
                 lastRequestTime: '$records.lastRequestTime'
             }
         },
         {
             $addFields: {
-                lastRequestTime: { $ifNull: [ '$lastRequestTime', new Date('1970-01-01T00:00:00.000+00:00') ] } 
+                lastRequestTime: { $ifNull: [ '$lastRequestTime', new Date('') ] } 
             }
         },
         {
             $sort: {
-                'lastRequestTime': 1
+                'lastRequestTime': 1,
+                'create_date': -1
             }
         },
         {
             $limit: num
+        },
+        {
+            $project: {
+                lookupId: 0,
+                records: 0,
+            }
         }
     ];
 }
@@ -152,7 +162,7 @@ export async function random(options: FindOptions): Promise<{totalSample: number
     Pipeline 2
         $match
         $lookup records
-        $sort by lastRequestTime -1
+        $sort by lastRequestTime 1
         $sample
 
     When options.returnTotalSample is false:
@@ -253,10 +263,17 @@ export async function record(clientId: string, illusts: any[]) {
     const col = db.collection('records');
     const oprations = [];
     for (const illust of illusts) {
+        const record = {
+            id: `${illust.id}/${illust.page}/${clientId}`,
+            illustId: illust.id,
+            illustPage: illust.page,
+            clientId: clientId,
+            lastRequestTime: new Date(),
+        };
         oprations.push({
             updateOne: {
-                filter: { id: illust.id, page: illust.page, clientId },
-                update: { $set: { lastRequestTime: new Date() } },
+                filter: { id: record.id },
+                update: { $set: record },
                 upsert: true
             }
         });
