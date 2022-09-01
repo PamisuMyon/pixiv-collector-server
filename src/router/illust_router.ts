@@ -70,7 +70,14 @@ async function findRandom(p: any) {
         if (p.fallbackTags 
             && Array.isArray(p.fallbackTags)
             && p.fallbackTags.length != 0) {
-            r = await illustDao.random({ num: option.num, r18: 0, tags: p.fallbackTags, excludedTags: option.excludedTags, returnTotalSample: option.returnTotalSample });
+            r = await illustDao.random({ 
+                num: option.num, 
+                r18: 0, 
+                tags: p.fallbackTags, 
+                excludedTags: option.excludedTags, 
+                returnTotalSample: option.returnTotalSample,
+                clientId: option.clientId,
+            });
         }
         else
             r = await illustDao.random({ num: option.num, r18: 0, excludedTags: option.excludedTags});

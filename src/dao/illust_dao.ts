@@ -93,8 +93,11 @@ function getRecordsLookupStages(clientId: string, num: number) {
             $addFields: {
                 lookupId: {
                     $concat: [
-                        { $toString: '$id' }, '/',
-                        { $toString: '$page' }, '/',
+                        // { $toString: '$id' }, '/',
+                        // { $toString: '$page' }, '/',
+                        // for compatibility of v3.6
+                        { $substr: ['$id', 0, -1] }, '/', 
+                        { $substr: ['$page', 0, -1]}, '/',
                         clientId
                     ]
                 }
