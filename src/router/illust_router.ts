@@ -49,6 +49,12 @@ async function findRandom(p: any) {
     p.r18 = parseInt(p.r18);
     p.num = parseInt(p.num);
     p.maxSanityLevel = parseInt(p.maxSanityLevel);
+    const clientIds = [];
+    if (Array.isArray(p.clientIds) && p.clientIds.length > 0) {
+        clientIds.push(...p.clientIds);
+    } else if (p.clientId) {
+        clientIds.push(p.clientId);
+    }
     let option: illustDao.FindOptions = {
         num: p.num || 1,
         r18: (p.r18 != 1 && p.r18 != 2) ? 0 : p.r18,
@@ -57,7 +63,7 @@ async function findRandom(p: any) {
         maxSanityLevel: p.maxSanityLevel || 0,
         matchMode: p.matchMode || illustDao.MatchMode.ACCURACY,
         returnTotalSample: p.returnTotalSample || false,
-        clientId: p.clientId,
+        clientId: clientIds.length > 0? clientIds[0] : null,
     };
 
     if (!Array.isArray(option.tags)) {
@@ -87,9 +93,11 @@ async function findRandom(p: any) {
     let proxy = p.proxy || getAppConfig().defaultImageProxy;
     processUrl(r.data, proxy);
 
-    if (p.clientId && p.shouldRecord && p.shouldRecord !== 'false') {
-        const recordResult = await illustDao.record(p.clientId, r.data);
-        console.log(`Record result: modified: ${recordResult.modifiedCount}  upsert: ${recordResult.upsertedCount}`);
+    if (clientIds.length > 0 && p.shouldRecord && p.shouldRecord !== 'false') {
+        for (const clientId of clientIds) {
+            const recordResult = await illustDao.record(clientId, r.data);
+            console.log(`Record result: modified: ${recordResult.modifiedCount}  upsert: ${recordResult.upsertedCount}`);
+        }
     }
 
     return { illusts: r.data, fallback, totalSample: r.totalSample };
