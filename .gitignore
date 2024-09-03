@@ -85,3 +85,5 @@ dist/
 cache/
 
 misc.ts
+
+app_config.json
